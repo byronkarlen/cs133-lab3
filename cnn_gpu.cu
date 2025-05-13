@@ -23,8 +23,7 @@ __global__ void cnn_gpu(
     for (int j = 0; j < kNum; ++j) {
         for (int p = 0; p < kKernel; ++p) {
             for (int q = 0; q < kKernel; ++q) {
-                acc += weight[(((i * kNum + j) * kKernel + p) * kKernel + q)] *
-                       input[(((j * (kImSize + kKernel - 1) + h + p) * (kImSize + kKernel - 1)) + w + q)];
+                acc += weight(i,j,p,q) * input(j,h+p,w+q);
             }
         }
     }
@@ -39,7 +38,6 @@ __global__ void cnn_gpu(
         float v10 = (h + 1 < kImSize) ? fmaxf(0.f, bias[i]) : 0.f;
         float v11 = ((h + 1 < kImSize) && (w + 1 < kImSize)) ? fmaxf(0.f, bias[i]) : 0.f;
 
-        output[((i * kOutImSize + h / 2) * kOutImSize + w / 2)] =
-            fmaxf(fmaxf(v00, v01), fmaxf(v10, v11));
+        output(i,h/2,w/2) = fmaxf(fmaxf(v00, v01), fmaxf(v10, v11));
     }
 }
