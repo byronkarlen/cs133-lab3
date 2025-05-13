@@ -12,8 +12,8 @@ __global__ void cnn_gpu(
 {
 
     int i = blockIdx.z * blockDim.z + threadIdx.z; // output channel
-    int h = blockIdx.y * blockDim.y + threadIdx.y; // pooled row
-    int w = blockIdx.x * blockDim.x + threadIdx.x; // pooled col
+    int h = blockIdx.y * blockDim.y + threadIdx.y;
+    int w = blockIdx.x * blockDim.x + threadIdx.x;
 
     int h_base = h * 2;
     int w_base = w * 2;
