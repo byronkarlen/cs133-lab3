@@ -11,27 +11,35 @@ __global__ void cnn_gpu(
     float* output)
 {
 
-  // Get thread indices
-  int i = blockIdx.x;  // output channel
-  int h = blockIdx.y;  // output height
-  int w = blockIdx.z;  // output width
-  
-  // Initialize output with bias
-  output(i,h,w) = bias[i];
-  
-  // Convolution
-  float sum = 0.0f;
-  for (int j = 0; j < kNum; ++j) {         // input channel
-      for (int p = 0; p < kKernel; ++p) {  // kernel height
-          for (int q = 0; q < kKernel; ++q) { // kernel width
-              sum += weight(i,j,p,q) * input(j,h+p,w+q);
-          }
-      }
-  }
-  
-  // Store result
-  output(i,h,w) = sum;
-  
-  // ReLU
-  output(i,h,w) = max(0.0f, output(i,h,w));
+    int i = blockIdx.x * blockDim.x + threadIdx.x; // output channel
+    int h = blockIdx.y * blockDim.y + threadIdx.y; // height
+    int w = blockIdx.z * blockDim.z + threadIdx.z; // width
+
+    if (i >= kNum || h >= kImSize || w >= kImSize) return;
+
+    // Convolution + bias
+    float acc = bias[i];
+
+    for (int j = 0; j < kNum; ++j) {
+        for (int p = 0; p < kKernel; ++p) {
+            for (int q = 0; q < kKernel; ++q) {
+                acc += weight[(((i * kNum + j) * kKernel + p) * kKernel + q)] *
+                       input[(((j * (kImSize + kKernel - 1) + h + p) * (kImSize + kKernel - 1)) + w + q)];
+            }
+        }
+    }
+
+    // ReLU
+    acc = fmaxf(0.f, acc);
+
+    // Maxpool (2x2)
+    if (h % 2 == 0 && w % 2 == 0 && h / 2 < kOutImSize && w / 2 < kOutImSize) {
+        float v00 = acc;
+        float v01 = (w + 1 < kImSize) ? fmaxf(0.f, bias[i]) : 0.f;
+        float v10 = (h + 1 < kImSize) ? fmaxf(0.f, bias[i]) : 0.f;
+        float v11 = ((h + 1 < kImSize) && (w + 1 < kImSize)) ? fmaxf(0.f, bias[i]) : 0.f;
+
+        output[((i * kOutImSize + h / 2) * kOutImSize + w / 2)] =
+            fmaxf(fmaxf(v00, v01), fmaxf(v10, v11));
+    }
 }
