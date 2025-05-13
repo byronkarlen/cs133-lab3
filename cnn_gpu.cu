@@ -15,38 +15,36 @@ __global__ void cnn_gpu(
     int h = blockIdx.y * blockDim.y + threadIdx.y; // pooled row
     int w = blockIdx.x * blockDim.x + threadIdx.x; // pooled col
 
-    if (i >= kNum || h >= kOutImSize || w >= kOutImSize) return;
-
     int h_base = h * 2;
     int w_base = w * 2;
 
-    float v00 = bias[i], v01 = bias[i], v10 = bias[i], v11 = bias[i];
+    float c00 = bias[i], c01 = bias[i], c10 = bias[i], c11 = bias[i];
 
     for (int j = 0; j < kNum; ++j) {
         for (int p = 0; p < kKernel; ++p) {
             for (int q = 0; q < kKernel; ++q) {
-                int hin0 = h_base + p;
-                int win0 = w_base + q;
-                int hin1 = h_base + 1 + p;
-                int win1 = w_base + 1 + q;
+                int ih0 = h_base + p;
+                int ih1 = h_base + 1 + p;
+                int iw0 = w_base + q;
+                int iw1 = w_base + 1 + q;
 
-                float w_val = weight[(((i * kNum + j) * kKernel + p) * kKernel + q)];
+                float w_val = weight(i,j,p,q);
 
-                v00 += w_val * input[((j * kInImSize + hin0) * kInImSize + win0)];
-                v01 += w_val * input[((j * kInImSize + hin0) * kInImSize + win1)];
-                v10 += w_val * input[((j * kInImSize + hin1) * kInImSize + win0)];
-                v11 += w_val * input[((j * kInImSize + hin1) * kInImSize + win1)];
+                c00 += w_val * input(j,ih0,iw0);
+                c01 += w_val * input(j,ih0,iw1);
+                c10 += w_val * input(j,ih1,iw0);
+                c11 += w_val * input(j,ih1,iw1);
             }
         }
     }
 
     // Apply ReLU
-    v00 = fmaxf(0.f, v00);
-    v01 = fmaxf(0.f, v01);
-    v10 = fmaxf(0.f, v10);
-    v11 = fmaxf(0.f, v11);
+    c00 = fmaxf(0.f, c00);
+    c01 = fmaxf(0.f, c01);
+    c10 = fmaxf(0.f, c10);
+    c11 = fmaxf(0.f, c11);
 
     // Maxpool
-    float pooled = fmaxf(fmaxf(v00, v01), fmaxf(v10, v11));
-    output[(i * kOutImSize + h) * kOutImSize + w] = pooled;
+    float pooled = fmaxf(fmaxf(c00, c01), fmaxf(c10, c11));
+    output(i,h,w) = pooled;
 }
